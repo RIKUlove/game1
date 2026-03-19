@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>横スクロールゲーム</title>
+<title>横スクロールゲーム（障害物強化）</title>
 <style>
   body { margin:0; overflow:hidden; background:#87CEEB; }
   canvas { display:block; margin:0 auto; background:#87CEEB; }
@@ -23,25 +23,41 @@ document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
 
 const player = {
-  x: 100,
-  y: 300,
-  w: 30,
-  h: 30,
-  vx: 0,
-  vy: 0,
-  onGround: false
+  x: 100, y: 300, w: 30, h: 30,
+  vx: 0, vy: 0, onGround: false
 };
 
 const gravity = 0.5;
 
+// 足場
 const platforms = [
-  {x:0, y:350, w:2000, h:50},
+  {x:0, y:350, w:400, h:50},
+  {x:500, y:350, w:300, h:50},
+  {x:900, y:350, w:400, h:50},
   {x:300, y:280, w:100, h:20},
-  {x:500, y:220, w:100, h:20},
-  {x:700, y:300, w:100, h:20}
+  {x:650, y:250, w:100, h:20}
+];
+
+// トゲ（当たるとリセット）
+const spikes = [
+  {x:420, y:330, w:30, h:20},
+  {x:460, y:330, w:30, h:20},
+  {x:800, y:330, w:30, h:20}
+];
+
+// 動く足場
+const movingPlatforms = [
+  {x:1100, y:280, w:100, h:20, dir:1}
 ];
 
 let cameraX = 0;
+
+function reset() {
+  player.x = 100;
+  player.y = 300;
+  player.vx = 0;
+  player.vy = 0;
+}
 
 function update() {
   // 左右移動
@@ -59,33 +75,70 @@ function update() {
   player.x += player.vx;
   player.y += player.vy;
 
-  // 衝突判定
+  // 通常足場
   player.onGround = false;
   for (let p of platforms) {
-    if (player.x < p.x + p.w &&
-        player.x + player.w > p.x &&
-        player.y < p.y + p.h &&
-        player.y + player.h > p.y) {
-
-      if (player.vy > 0) {
-        player.y = p.y - player.h;
-        player.vy = 0;
-        player.onGround = true;
-      }
+    if (hit(player, p) && player.vy > 0) {
+      player.y = p.y - player.h;
+      player.vy = 0;
+      player.onGround = true;
     }
   }
 
-  // カメラ追従
+  // 動く足場
+  for (let m of movingPlatforms) {
+    m.x += m.dir * 2;
+    if (m.x > 1300 || m.x < 1000) m.dir *= -1;
+
+    if (hit(player, m) && player.vy > 0) {
+      player.y = m.y - player.h;
+      player.vy = 0;
+      player.onGround = true;
+      player.x += m.dir * 2; // 一緒に動く
+    }
+  }
+
+  // トゲ判定
+  for (let s of spikes) {
+    if (hit(player, s)) {
+      reset();
+    }
+  }
+
+  // 落下
+  if (player.y > canvas.height) {
+    reset();
+  }
+
   cameraX = player.x - 200;
+}
+
+function hit(a, b) {
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
 }
 
 function draw() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // 地面
+  // 足場
   ctx.fillStyle = "#228B22";
   for (let p of platforms) {
     ctx.fillRect(p.x - cameraX, p.y, p.w, p.h);
+  }
+
+  // 動く足場
+  ctx.fillStyle = "#006400";
+  for (let m of movingPlatforms) {
+    ctx.fillRect(m.x - cameraX, m.y, m.w, m.h);
+  }
+
+  // トゲ
+  ctx.fillStyle = "black";
+  for (let s of spikes) {
+    ctx.fillRect(s.x - cameraX, s.y, s.w, s.h);
   }
 
   // プレイヤー
